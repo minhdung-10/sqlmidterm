@@ -1,0 +1,75 @@
+import time
+import pwinput
+
+from import_firm import run_import_dim_firm
+from import_panel import run_create_snapshot, run_import_panel
+
+
+def run_pipeline():
+
+    print("=" * 60)
+    print("🚀 RUNNING FULL FINANCIAL ETL PIPELINE 🚀")
+    print("=" * 60)
+
+    # ======================
+    # MYSQL LOGIN
+    # ======================
+    db_host = input("Host (Enter = localhost): ") or "localhost"
+    db_port = input("Port (Enter = 3306): ") or "3306"
+    db_user = input("User (Enter = root): ") or "root"
+    db_name = input("Database name: ")
+    db_password = pwinput.pwinput("Password: ", mask="*")
+
+    connection_string = (
+        f"mysql+pymysql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
+    )
+
+    EXCEL_FILE = "DATA COLLECTION.xlsx"
+    FISCAL_YEAR = 2024
+    VERSION_TAG = "v1_pipeline"
+
+    try:
+
+        # ======================
+        # STEP 1 - DIM_FIRM
+        # ======================
+        print("\n▶ STEP 1: Import DIM_FIRM")
+        time.sleep(1)
+
+        run_import_dim_firm(EXCEL_FILE, connection_string)
+
+        # ======================
+        # STEP 2 - SNAPSHOT
+        # ======================
+        print("\n▶ STEP 2: Create Snapshot")
+        time.sleep(1)
+
+        snapshot_id = run_create_snapshot(
+            source_name=EXCEL_FILE,
+            version_tag=VERSION_TAG,
+            connection_string=connection_string
+        )
+
+        # ======================
+        # STEP 3 - PANEL DATA
+        # ======================
+        print("\n▶ STEP 3: Import Panel Data")
+        time.sleep(1)
+
+        run_import_panel(
+            excel_path=EXCEL_FILE,
+            snapshot_id=snapshot_id,
+            connection_string=connection_string
+        )
+
+        print("\n" + "=" * 60)
+        print("🎉 PIPELINE COMPLETED SUCCESSFULLY 🎉")
+        print("=" * 60)
+
+    except Exception as e:
+        print("\n❌ PIPELINE FAILED")
+        print("Error:", e)
+
+
+if __name__ == "__main__":
+    run_pipeline()

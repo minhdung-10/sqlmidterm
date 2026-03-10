@@ -17,7 +17,6 @@ def clean_number(value):
 
     val = val.replace("\n", "")
     val = val.replace(",", "")
-
     try:
         return float(val)
     except:
@@ -68,24 +67,27 @@ def run_create_snapshot(source_name, version_tag, connection_string):
 # ======================
 def run_import_panel(excel_path, snapshot_id, connection_string):
 
+    import pandas as pd
+    import numpy as np
+    from sqlalchemy import create_engine, text
+
     print("📥 Reading Excel...")
     df = pd.read_excel(excel_path, engine="openpyxl")
 
-    # Clean columns
     df.columns = df.columns.str.strip().str.replace('\n', '')
     df['StockCode'] = df['StockCode'].astype(str).str.strip()
+
     df = df.replace({np.nan: None})
 
     engine = create_engine(connection_string)
 
     with engine.begin() as conn:
 
-        # Load firm map
         firm_map = {
             row.ticker: row.firm_id
-            for row in conn.execute(
-                text("SELECT firm_id, ticker FROM dim_firm")
-            )
+            for row in conn.execute(text(
+                "SELECT firm_id, ticker FROM dim_firm"
+            ))
         }
 
         print(f"🔎 Loaded {len(firm_map)} firms")
@@ -100,139 +102,204 @@ def run_import_panel(excel_path, snapshot_id, connection_string):
             firm_id = firm_map[row['StockCode']]
             fiscal_year = int(row['Year'])
 
-            # ======================
-            # 1️⃣ FINANCIAL
-            # ======================
+            # =========================
+            # FINANCIAL
+            # =========================
             conn.execute(text("""
                 INSERT IGNORE INTO fact_financial_year (
                     firm_id, fiscal_year, snapshot_id,
-                    total_assets, total_liabilities,
-                    total_equity, revenue,
-                    operating_income, net_income, eps
+                    unit_scale, currency_code,
+                    net_sales, total_assets,
+                    selling_expenses, general_admin_expenses,
+                    manufacturing_overhead, raw_material_consumption,
+                    merchandise_purchase_year, wip_goods_purchase,
+                    outside_manufacturing_expenses, production_cost,
+                    intangible_assets_net,
+                    net_operating_income, net_income,
+                    total_equity, total_liabilities,
+                    long_term_debt,
+                    current_assets, current_liabilities,
+                    inventory, net_ppe, cash_and_equivalents,
+                    rnd_expenditure, growth_ratio
                 )
                 VALUES (
-                    :fid, :year, :sid,
-                    :ta, :tl, :te, :rev,
-                    :op, :ni, :eps
+                    :fid,:year,:sid,
+                    :scale,:cur,
+                    :sales,:ta,
+                    :sell,:ga,
+                    :mo,:rm,
+                    :merch,:wip,
+                    :outside,:prod,
+                    :intan,
+                    :op,:ni,
+                    :equity,:liab,
+                    :ltd,
+                    :ca,:cl,
+                    :inv,:ppe,:cash,
+                    :rnd,:growth
                 )
-            """), {
+            """),{
+
                 "fid": firm_id,
                 "year": fiscal_year,
                 "sid": snapshot_id,
+                "scale": 1,
+                "cur": "VND",
+
+                "sales": clean_number(row.get('Total sales revenue')),
                 "ta": clean_number(row.get('Total assets')),
-                "tl": clean_number(row.get('Total liabilities')),
-                "te": clean_number(row.get("Total shareholders' equity")),
-                "rev": clean_number(row.get('Total sales revenue')),
+                "sell": clean_number(row.get('Selling expenses')),
+                "ga": clean_number(row.get('General and administrative expenditure')),
+                "mo": clean_number(row.get('Manufacturing overhead (Indirect cost)')),
+                "rm": clean_number(row.get('Consumption of raw material')),
+                "merch": clean_number(row.get('Merchandise purchase of the year')),
+                "wip": clean_number(row.get('Work-in-progress goods purchase')),
+                "outside": clean_number(row.get('Outside manufacturing expenses')),
+                "prod": clean_number(row.get('Production cost')),
+                "intan": clean_number(row.get('Value of intangible assets')),
                 "op": clean_number(row.get('Net operating income')),
                 "ni": clean_number(row.get('Net Income')),
-                "eps": clean_number(row.get('EPS'))
+                "equity": clean_number(row.get("Total shareholders' equity")),
+                "liab": clean_number(row.get('Total liabilities')),
+                "ltd": clean_number(row.get('Long-term debt')),
+                "ca": clean_number(row.get('Current assets')),
+                "cl": clean_number(row.get('Current liabilities')),
+                "inv": clean_number(row.get('Total inventory')),
+                "ppe": clean_number(row.get('Net plant, property and equipment')),
+                "cash": clean_number(row.get('Cash and Cash Equivalents')),
+                "rnd": clean_number(row.get('R&D expenditure')),
+                "growth": clean_number(row.get('Growth ratio'))
             })
 
-            # ======================
-            # 2️⃣ MARKET
-            # ======================
-            conn.execute(text("""
-                INSERT IGNORE INTO fact_market_year (
-                    firm_id, fiscal_year, snapshot_id,
-                    shares_outstanding, share_price,
-                    market_value_equity, dividend_payment
-                )
-                VALUES (
-                    :fid, :year, :sid,
-                    :shares, :price, :mve, :div
-                )
-            """), {
-                "fid": firm_id,
-                "year": fiscal_year,
-                "sid": snapshot_id,
-                "shares": clean_number(row.get('Shares outstanding')),
-                "price": clean_number(row.get('Share price')),
-                "mve": clean_number(row.get('Market value of equity')),
-                "div": clean_number(row.get('Divident payment'))
-            })
 
-            # ======================
-            # 3️⃣ CASHFLOW
-            # ======================
+            # =========================
+            # CASHFLOW
+            # =========================
             conn.execute(text("""
                 INSERT IGNORE INTO fact_cashflow_year (
                     firm_id, fiscal_year, snapshot_id,
-                    cfo, cfi, capex
+                    unit_scale, currency_code,
+                    net_cfo, net_cfi, capex
                 )
                 VALUES (
-                    :fid, :year, :sid,
-                    :cfo, :cfi, :capex
+                    :fid,:year,:sid,
+                    :scale,:cur,
+                    :cfo,:cfi,:capex
                 )
-            """), {
+            """),{
+
                 "fid": firm_id,
                 "year": fiscal_year,
                 "sid": snapshot_id,
+                "scale": 1,
+                "cur": "VND",
+
                 "cfo": clean_number(row.get('Net cash from operating activities')),
                 "cfi": clean_number(row.get('Cash flows from investing activities')),
-                "capex": clean_number(row.get('Capital expenditure'))
+                "capex": clean_number(row.get('Capital expenditure')),
             })
 
-            # ======================
-            # 4️⃣ OWNERSHIP
-            # ======================
+
+            # =========================
+            # MARKET
+            # =========================
+            conn.execute(text("""
+                INSERT IGNORE INTO fact_market_year (
+                    firm_id, fiscal_year, snapshot_id,
+                    shares_outstanding,
+                    market_value_equity,
+                    dividend_cash_paid,
+                    eps_basic
+                )
+                VALUES (
+                    :fid,:year,:sid,
+                    :shares,:mve,:div,:eps
+                )
+            """),{
+
+                "fid": firm_id,
+                "year": fiscal_year,
+                "sid": snapshot_id,
+                "cur": "VND",
+
+                "shares": clean_number(row.get('Total share outstanding')),
+                "mve": clean_number(row.get('Market value of equity')),
+                "div": clean_number(row.get('Divident payment')),
+                "eps": clean_number(row.get('EPS'))
+            })
+
+
+            # =========================
+            # OWNERSHIP
+            # =========================
             conn.execute(text("""
                 INSERT IGNORE INTO fact_ownership_year (
                     firm_id, fiscal_year, snapshot_id,
-                    state_ownership, foreign_ownership,
-                    institutional_ownership, managerial_ownership
+                    managerial_inside_own,
+                    state_own,
+                    institutional_own,
+                    foreign_own
                 )
                 VALUES (
-                    :fid, :year, :sid,
-                    :state, :foreign, :inst, :manager
+                    :fid,:year,:sid,
+                    :manager,:state,:inst,:foreign
                 )
-            """), {
+            """),{
+
                 "fid": firm_id,
                 "year": fiscal_year,
                 "sid": snapshot_id,
+
+                "manager": clean_number(row.get('Managerial/Inside ownership')),
                 "state": clean_number(row.get('State Ownership')),
-                "foreign": clean_number(row.get('Foreign ownership')),
                 "inst": clean_number(row.get('Institutional ownership')),
-                "manager": clean_number(row.get('Managerial/Inside ownership'))
+                "foreign": clean_number(row.get('Foreign ownership'))
             })
 
-            # ======================
-            # 5️⃣ INNOVATION
-            # ======================
+
+            # =========================
+            # INNOVATION
+            # =========================
             conn.execute(text("""
                 INSERT IGNORE INTO fact_innovation_year (
                     firm_id, fiscal_year, snapshot_id,
-                    product_innovation, process_innovation,
-                    innovation_evidence
+                    product_innovation,
+                    process_innovation
                 )
                 VALUES (
-                    :fid, :year, :sid,
-                    :prod, :proc, :evidence
+                    :fid,:year,:sid,
+                    :prod,:proc
                 )
-            """), {
+            """),{
+
                 "fid": firm_id,
                 "year": fiscal_year,
                 "sid": snapshot_id,
+
                 "prod": int(row.get('Product innovation') or 0),
-                "proc": int(row.get('Process innovation') or 0),
-                "evidence": row.get('Innovation evidence')
+                "proc": int(row.get('Process innovation') or 0)
             })
 
-            # ======================
-            # 6️⃣ META
-            # ======================
+
+            # =========================
+            # META
+            # =========================
             conn.execute(text("""
                 INSERT IGNORE INTO fact_firm_year_meta (
                     firm_id, fiscal_year, snapshot_id,
-                    employees, firm_age
+                    employees_count,
+                    firm_age
                 )
                 VALUES (
-                    :fid, :year, :sid,
-                    :emp, :age
+                    :fid,:year,:sid,
+                    :emp,:age
                 )
-            """), {
+            """),{
+
                 "fid": firm_id,
                 "year": fiscal_year,
                 "sid": snapshot_id,
+
                 "emp": clean_number(row.get('Number of employees')),
                 "age": clean_number(row.get('Firm Age'))
             })
@@ -240,4 +307,3 @@ def run_import_panel(excel_path, snapshot_id, connection_string):
             inserted_rows += 1
 
         print(f"✅ Imported {inserted_rows} firm-year records")
-

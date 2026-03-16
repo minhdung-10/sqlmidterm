@@ -19,7 +19,7 @@ CREATE TABLE dim_industry_l2 (
 CREATE TABLE dim_firm (
     firm_id BIGINT AUTO_INCREMENT PRIMARY KEY,
     ticker VARCHAR(20) UNIQUE NOT NULL,
-    company_name VARCHAR(255),
+    firm_name VARCHAR(255),
     exchange_id INT,
     industry_l2_id INT,
     FOREIGN KEY (exchange_id) REFERENCES dim_exchange(exchange_id),
@@ -78,7 +78,6 @@ CREATE TABLE fact_financial_year (
     outside_manufacturing_expenses DECIMAL(20,2),
     production_cost DECIMAL(20,2),
     intangible_assets_net DECIMAL(20,2),
-    net_operating_income DECIMAL(20,2),
     net_operating_income DECIMAL(20,2),
     net_income DECIMAL(20,2),
     total_equity DECIMAL(20,2),

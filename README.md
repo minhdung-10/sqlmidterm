@@ -1,71 +1,85 @@
-# Firm Data Hub  
-**Trung tâm lưu trữ và xử lý dữ liệu doanh nghiệp (2020–2024)**
+# sqlmidterm
 
-Dự án xây dựng một hệ thống quản lý dữ liệu doanh nghiệp niêm yết tại Việt Nam bằng **MySQL + Python ETL**, hỗ trợ lưu trữ dữ liệu panel theo năm, kiểm tra chất lượng dữ liệu, quản lý snapshot/version và xuất bộ dữ liệu sạch phục vụ phân tích.
+> Dự án giữa kỳ môn SQL của **Nhóm 4**, xây dựng một **Firm Data Hub** bằng **MySQL + Python** để lưu trữ, nhập liệu, versioning bằng snapshot, kiểm tra chất lượng dữ liệu và xuất bộ panel doanh nghiệp phục vụ phân tích.
 
 ---
 
-## Tổng quan
+## Giới thiệu
 
-Firm Data Hub được thiết kế để giải quyết 4 bài toán chính:
+`sqlmidterm` là project xây dựng hệ thống quản lý dữ liệu doanh nghiệp niêm yết trong giai đoạn **2020–2024**.  
+Hệ thống được thiết kế để:
 
-- Lưu trữ tập trung thông tin doanh nghiệp và dữ liệu tài chính theo năm
-- Quản lý dữ liệu theo phiên bản bằng cơ chế **snapshot**
-- Kiểm tra chất lượng dữ liệu trước khi sử dụng
-- Xuất bộ **panel latest** phục vụ phân tích hoặc nghiên cứu
+- lưu trữ dữ liệu doanh nghiệp theo cấu trúc quan hệ
+- nhập dữ liệu từ file Excel vào database
+- tạo snapshot để theo dõi các lần cập nhật dữ liệu
+- kiểm tra chất lượng dữ liệu bằng notebook QC
+- xuất bộ dữ liệu panel mới nhất ra file CSV
 
-Phạm vi dữ liệu của project gồm:
+Dự án sử dụng một file dữ liệu tổng hợp là **`DATA COLLECTION.xlsx`** và triển khai pipeline bằng Python kết nối với MySQL.
 
-- **20 doanh nghiệp niêm yết**
-- **Giai đoạn 2020–2024**
-- **38 biến dữ liệu** thuộc các nhóm ownership, market, financials, cashflow, innovation và metadata
+---
+
+## Thành viên nhóm
+
+- **Đào Minh Dũng**
+- **Vũ Đức Anh**
+- **Nguyễn Đức Quang**
+- **Đỗ Huy**
 
 ---
 
 ## Công nghệ sử dụng
 
-- **MySQL**: thiết kế và quản lý cơ sở dữ liệu
-- **Python**: ETL, kiểm tra dữ liệu và export output
-- **CSV / Excel**: nguồn dữ liệu đầu vào
-- **SQL View**: dựng panel cuối cùng để truy vấn nhanh
+- **MySQL**: lưu trữ và quản lý cơ sở dữ liệu
+- **Python**: ETL pipeline và export dữ liệu
+- **Pandas / NumPy**: xử lý dữ liệu
+- **SQLAlchemy + PyMySQL**: kết nối Python với MySQL
+- **OpenPyXL**: đọc file Excel
+- **Jupyter Notebook**: kiểm tra chất lượng dữ liệu
 
 ---
 
 ## Cấu trúc thư mục
 
 ```bash
-FirmDataHub/
-├── sql/
-│   └── schema_and_seed.sql
-├── etl/
-│   ├── import_firms.py
-│   ├── create_snapshot.py
-│   ├── import_panel.py
-│   ├── qc_checks.py
-│   └── export_panel.py
-├── data/
-│   ├── team_tickers.csv
-│   ├── firms.xlsx
-│   └── panel_2020_2024.xlsx
-├── outputs/
-│   ├── qc_report.csv
-│   └── panel_latest.csv
-└── README.md
+sqlmidterm/
+├── README.md              # mô tả dự án
+├── database.sql           # script SQL tạo database và các bảng
+├── main.py                # file chạy pipeline chính
+├── import_firm.py         # nhập danh mục doanh nghiệp
+├── import_panel.py        # nhập dữ liệu panel
+├── export_panel.py        # xuất dữ liệu panel mới nhất
+├── create_snapshot.py     # tạo snapshot dữ liệu
+├── QC_Checks_Colab.ipynb  # notebook kiểm tra chất lượng dữ liệu
+└── DATA COLLECTION.xlsx   # file dữ liệu đầu vào
 ```
 
 ---
 
-## Thiết kế hệ thống
+## Mục tiêu dự án
 
-Cơ sở dữ liệu được tổ chức theo mô hình **Dimension + Fact + Snapshot**.
+Project hướng tới việc xây dựng một pipeline dữ liệu có thể:
+
+1. khởi tạo database bằng SQL
+2. import danh mục doanh nghiệp từ Excel
+3. import dữ liệu panel theo năm
+4. tạo snapshot để quản lý version dữ liệu
+5. kiểm tra chất lượng dữ liệu
+6. export bộ panel mới nhất phục vụ phân tích
+
+---
+
+## Thiết kế cơ sở dữ liệu
+
+Database hiện tại được tổ chức theo hướng **dimension + fact + snapshot**.
 
 ### Dimension tables
-- `dim_firm`
 - `dim_exchange`
 - `dim_industry_l2`
+- `dim_firm`
 - `dim_data_source`
 
-### Snapshot / Versioning
+### Snapshot table
 - `fact_data_snapshot`
 
 ### Fact tables
@@ -76,224 +90,246 @@ Cơ sở dữ liệu được tổ chức theo mô hình **Dimension + Fact + Sn
 - `fact_innovation_year`
 - `fact_firm_year_meta`
 
-### Audit log
-- `fact_value_override_log`
-
----
-
-## Pipeline ETL
-
-### 1. Import danh mục doanh nghiệp
-Script `import_firms.py` dùng để nạp danh mục doanh nghiệp từ file đầu vào vào hệ thống.
-
-### 2. Tạo snapshot
-Script `create_snapshot.py` dùng để tạo phiên bản dữ liệu mới, phục vụ theo dõi lịch sử cập nhật.
-
-### 3. Import dữ liệu panel
-Script `import_panel.py` dùng để nạp dữ liệu panel 2020–2024 vào các bảng fact tương ứng.
-
-### 4. Kiểm tra chất lượng dữ liệu
-Script `qc_checks.py` thực hiện các rule kiểm tra dữ liệu và sinh file báo cáo lỗi.
-
-### 5. Xuất panel cuối cùng
-Script `export_panel.py` xuất bộ dữ liệu mới nhất ra file dùng cho phân tích.
-
----
-
-## Các kiểm tra chất lượng dữ liệu
-
-Hệ thống QC tập trung vào các rule quan trọng như:
-
-- Ownership ratio phải nằm trong khoảng hợp lệ
-- `shares_outstanding` phải lớn hơn 0
-- `total_assets` và `current_liabilities` không được âm
-- Growth ratio không vượt ngoài khoảng hợp lý
-- `market_value_equity` phải khớp tương đối với:
-  
-```text
-shares_outstanding × share_price
-```
-
-Kết quả QC được lưu tại:
-
-```bash
-outputs/qc_report.csv
-```
-
----
-
-## View chính của hệ thống
-
-Project tạo view:
-
-```sql
-vw_firm_panel_latest
-```
-
-View này dùng để tổng hợp bộ dữ liệu panel cuối cùng, bao gồm:
-
-- `ticker`
-- `fiscal_year`
-- các biến ownership
-- các biến market
-- các biến financial
-- các biến cashflow
-- các biến innovation
-- các biến metadata
+Cấu trúc này giúp dữ liệu được lưu theo từng **firm-year-snapshot**, thuận tiện cho việc theo dõi lịch sử cập nhật và xuất phiên bản mới nhất.
 
 ---
 
 ## Dữ liệu đầu vào
 
-Các file đầu vào chính của project:
+Project hiện sử dụng file:
 
-- `data/team_tickers.csv`: danh sách ticker của nhóm
-- `data/firms.xlsx`: danh mục doanh nghiệp
-- `data/panel_2020_2024.xlsx`: dữ liệu panel 5 năm
+```bash
+DATA COLLECTION.xlsx
+```
+
+File này chứa dữ liệu doanh nghiệp và dữ liệu panel theo năm, bao gồm các nhóm biến như:
+
+- ownership
+- market
+- financial statements
+- cashflow
+- innovation
+- firm metadata
+
+Một số cột dữ liệu chính trong file Excel gồm:
+
+- `Company`
+- `StockCode`
+- `Year`
+- `Managerial/Inside ownership`
+- `State Ownership`
+- `Institutional ownership`
+- `Foreign ownership`
+- `Total share outstanding`
+- `R&D expenditure`
+- `Product innovation`
+- `Process innovation`
+- `Firm Age`
+- `Market value of equity`
+- `Number of employees`
+- `Selling expenses`
+- `Total assets`
+- `Total liabilities`
+- `Net Income`
+- `EPS`
+- `Net cash from operating activities`
+- `Growth Ratio`
+- `Total sales revenue`
 
 ---
 
-## Dữ liệu đầu ra
+## Chức năng của từng file
 
-Sau khi chạy hoàn chỉnh pipeline, project sinh ra:
+### `database.sql`
+Tạo database `midterm_proj` và toàn bộ các bảng dimension, fact, snapshot.
 
-- `outputs/qc_report.csv`: báo cáo lỗi dữ liệu
-- `outputs/panel_latest.csv`: bộ dữ liệu panel mới nhất
+### `import_firm.py`
+Đọc file Excel, làm sạch dữ liệu doanh nghiệp và import danh mục firm vào bảng `dim_firm`.
+
+### `create_snapshot.py`
+Tạo snapshot mới trong bảng `fact_data_snapshot` để ghi nhận một phiên bản dữ liệu tại thời điểm import.
+
+### `import_panel.py`
+Đọc file Excel và nạp dữ liệu panel vào các bảng fact:
+- `fact_financial_year`
+- `fact_cashflow_year`
+- `fact_market_year`
+- `fact_ownership_year`
+- `fact_innovation_year`
+- `fact_firm_year_meta`
+
+### `export_panel.py`
+Xuất bộ dữ liệu panel mới nhất ra file:
+
+```bash
+outputs/panel_latest.csv
+```
+
+Script chọn snapshot mới nhất cho mỗi cặp `firm_id - fiscal_year`.
+
+### `QC_Checks_Colab.ipynb`
+Notebook kiểm tra chất lượng dữ liệu sau khi import vào database.
+
+### `main.py`
+Chạy pipeline chính theo thứ tự:
+1. nhập thông tin kết nối MySQL
+2. import danh mục doanh nghiệp
+3. tạo snapshot
+4. import dữ liệu panel
+
+---
+
+## Cài đặt môi trường
+
+Cài các thư viện cần thiết:
+
+```bash
+pip install pandas numpy sqlalchemy pymysql openpyxl pwinput jupyter notebook
+```
 
 ---
 
 ## Cách chạy project
 
-### 1. Tạo database
+### Bước 1: Tạo database
+Mở file `database.sql` trong MySQL Workbench hoặc VS Code extension hỗ trợ SQL, sau đó chạy toàn bộ script.
+
+Database mặc định trong file là:
 
 ```sql
-CREATE DATABASE firm_data_hub;
-USE firm_data_hub;
+CREATE DATABASE midterm_proj;
+USE midterm_proj;
 ```
 
-### 2. Tạo schema
+### Bước 2: Chạy pipeline chính
 
 ```bash
-mysql -u root -p firm_data_hub < sql/schema_and_seed.sql
+python main.py
 ```
 
-### 3. Import danh mục doanh nghiệp
+Khi chạy, chương trình sẽ yêu cầu nhập:
 
-```bash
-python etl/import_firms.py
+- host
+- port
+- user
+- database name
+- password
+
+Ví dụ thường dùng trên máy local:
+
+```text
+Host: localhost
+Port: 3306
+User: root
+Database name: midterm_proj
+Password: ********
 ```
 
-### 4. Tạo snapshot
+### Bước 3: Kiểm tra chất lượng dữ liệu
+Mở notebook:
 
 ```bash
-python etl/create_snapshot.py
+QC_Checks_Colab.ipynb
 ```
 
-### 5. Import dữ liệu panel
+và chạy toàn bộ cell để kiểm tra dữ liệu đã import.
+
+### Bước 4: Export dữ liệu panel mới nhất
+Có thể chạy riêng:
 
 ```bash
-python etl/import_panel.py
+python export_panel.py
 ```
 
-### 6. Chạy kiểm tra chất lượng dữ liệu
+Sau khi chạy thành công, file output sẽ nằm tại:
 
 ```bash
-python etl/qc_checks.py
-```
-
-### 7. Export bộ panel mới nhất
-
-```bash
-python etl/export_panel.py
+outputs/panel_latest.csv
 ```
 
 ---
 
-## Tính tái lập
+## Luồng xử lý dữ liệu
 
-Project được tổ chức theo hướng có thể chạy lại toàn bộ từ đầu:
+Pipeline hiện tại của project hoạt động theo luồng:
 
-1. Tạo database
-2. Chạy schema
-3. Import firms
-4. Tạo snapshot
-5. Import panel
-6. Chạy QC
-7. Export panel latest
-
-Cách tổ chức này giúp project dễ kiểm tra, dễ mở rộng và thuận tiện khi bàn giao.
-
----
-
-## Kết quả đạt được
-
-Dự án hoàn thiện các thành phần cốt lõi của một hệ thống dữ liệu doanh nghiệp:
-
-- Thiết kế schema rõ ràng
-- Tổ chức dữ liệu theo mô hình chuẩn
-- Hỗ trợ versioning bằng snapshot
-- Có kiểm tra chất lượng dữ liệu
-- Xuất được bộ panel mới nhất để phân tích
-- Có thể tái chạy toàn bộ pipeline
+```text
+DATA COLLECTION.xlsx
+        ↓
+ import_firm.py
+        ↓
+ create_snapshot.py
+        ↓
+ import_panel.py
+        ↓
+ QC_Checks_Colab.ipynb
+        ↓
+ export_panel.py
+        ↓
+ outputs/panel_latest.csv
+```
 
 ---
 
-## Hạn chế
+## Kiểm tra chất lượng dữ liệu
 
-- Một số biến có thể thiếu dữ liệu từ nguồn công khai
-- Một phần dữ liệu có thể cần nhập tay
-- Chưa tự động hóa hoàn toàn quá trình thu thập dữ liệu
+Notebook QC hiện kiểm tra một số nhóm lỗi chính như:
+
+- thiếu dữ liệu cốt lõi (`net_sales`, `total_assets`, `total_equity`)
+- giá trị âm bất thường
+- sai lệch phương trình kế toán
+- tăng trưởng doanh thu hoặc tài sản bất thường
+- market capitalization không khớp logic
+- outlier trong các chỉ số tài chính
+
+Mục tiêu của bước này là tăng độ tin cậy của bộ dữ liệu trước khi export.
+
+---
+
+## Kết quả đầu ra
+
+Project hiện hướng tới các kết quả chính:
+
+- dữ liệu doanh nghiệp đã được nạp vào MySQL
+- dữ liệu panel được lưu theo từng snapshot
+- notebook QC để đánh giá chất lượng dữ liệu
+- file xuất cuối cùng:
+
+```bash
+outputs/panel_latest.csv
+```
+
+---
+
+## Điểm nổi bật của project
+
+- tổ chức dữ liệu theo mô hình có cấu trúc
+- hỗ trợ versioning bằng snapshot
+- có bước QC sau khi import
+- có thể export panel latest để phân tích
+- pipeline đủ rõ để mở rộng thêm dữ liệu trong tương lai
+
+---
+
+## Hạn chế hiện tại
+
+- README hiện mới mô tả ở mức hệ thống, chưa có ERD hoặc ảnh minh họa
+- notebook QC chưa được đóng gói thành script tự động
+- một số bước vẫn phụ thuộc vào file Excel nguồn
+- output QC hiện chủ yếu được xem trong notebook
 
 ---
 
 ## Hướng phát triển
 
-- Tự động hóa quá trình ingestion dữ liệu
-- Mở rộng thêm doanh nghiệp và giai đoạn dữ liệu
-- Bổ sung dashboard trực quan hóa
-- Tăng cường rule QC và audit log
-
----
-
-## Thành viên nhóm
-
-- **Nhóm:** TEAM ...
-- **Thành viên 1:** Đào Minh Dũng
-- **Thành viên 2:** Vũ Đức Anh
-- **Thành viên 3:** Đỗ Huy
-- **Thành viên 4:** Nguyễn Đức Quang
-
----
-
-## Danh sách ticker
-
-```text
-AAA
-BBB
-CCC
-DDD
-EEE
-FFF
-GGG
-HHH
-III
-JJJ
-KKK
-LLL
-MMM
-NNN
-OOO
-PPP
-QQQ
-RRR
-SSS
-TTT
-```
-
-> Thay danh sách trên bằng đúng 20 ticker của nhóm bạn.
+- bổ sung sơ đồ ERD cho database
+- đóng gói phần QC thành script Python riêng
+- thêm file `requirements.txt`
+- tách cấu hình database sang `.env`
+- hoàn thiện tài liệu input/output chi tiết hơn
 
 ---
 
 ## License
 
-Dự án được thực hiện cho mục đích học tập và nghiên cứu.
+Dự án được thực hiện cho mục đích học tập.

@@ -130,7 +130,8 @@ CREATE TABLE fact_innovation_year (
     snapshot_id BIGINT NOT NULL,
     product_innovation TINYINT,
     process_innovation TINYINT,
-    evidence_note TEXT,
+    evidence_product TEXT,
+    evidence_process TEXT,
     PRIMARY KEY (firm_id, fiscal_year, snapshot_id),
     FOREIGN KEY (firm_id) REFERENCES dim_firm(firm_id),
     FOREIGN KEY (snapshot_id) REFERENCES fact_data_snapshot(snapshot_id)

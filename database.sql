@@ -146,3 +146,30 @@ CREATE TABLE fact_firm_year_meta (
     FOREIGN KEY (firm_id) REFERENCES dim_firm(firm_id),
     FOREIGN KEY (snapshot_id) REFERENCES fact_data_snapshot(snapshot_id)
 );
+
+CREATE TABLE fact_value_override_log (
+    override_id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT 'Audit key for overrides',
+
+    firm_id BIGINT NOT NULL COMMENT 'Firm identifier',
+    fiscal_year SMALLINT NOT NULL COMMENT 'Fiscal year',
+
+    table_name VARCHAR(80) NOT NULL COMMENT 'Target table of override',
+    column_name VARCHAR(80) NOT NULL COMMENT 'Target column of override',
+
+    old_value VARCHAR(255) NULL COMMENT 'Old value as text (for audit)',
+    new_value VARCHAR(255) NULL COMMENT 'New value as text',
+
+    reason VARCHAR(255) NULL COMMENT 'Reason for override',
+    changed_by VARCHAR(80) NULL COMMENT 'User/bot making change',
+    changed_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'When override logged',
+
+    -- FOREIGN KEY
+    CONSTRAINT fk_override_firm
+        FOREIGN KEY (firm_id)
+        REFERENCES dim_firm(firm_id)
+        ON DELETE CASCADE,
+
+    -- INDEXES
+    INDEX idx_override_firm_year (firm_id, fiscal_year),
+    INDEX idx_override_table_col (table_name, column_name)
+);

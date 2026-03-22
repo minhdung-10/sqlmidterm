@@ -2,7 +2,8 @@ import time
 import pwinput
 
 from import_firm import run_import_dim_firm
-from import_panel import run_create_snapshot, run_import_panel
+from create_snapshot import run_create_snapshot
+from import_panel import run_import_panel
 
 
 def run_pipeline():
@@ -25,7 +26,6 @@ def run_pipeline():
     )
 
     EXCEL_FILE = "DATA COLLECTION.xlsx"
-    FISCAL_YEAR = 2024
     VERSION_TAG = "v1_pipeline"
 
     try:
@@ -58,8 +58,8 @@ def run_pipeline():
 
         run_import_panel(
             excel_path=EXCEL_FILE,
-            snapshot_id=snapshot_id,
-            connection_string=connection_string
+            connection_string=connection_string,
+            snapshot_id= snapshot_id
         )
 
         print("\n" + "=" * 60)
@@ -72,4 +72,6 @@ def run_pipeline():
 
 
 if __name__ == "__main__":
+    
     run_pipeline()
+

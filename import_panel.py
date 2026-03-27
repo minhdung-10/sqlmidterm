@@ -3,7 +3,7 @@ import numpy as np
 from sqlalchemy import create_engine, text
 
 # ==========================================
-# VAR MAPPING
+# VAR MAPPING (GIỮ NGUYÊN)
 # ==========================================
 VAR_TO_DOC_MAPPING = {
     "BCTC_Kiem_Toan": [
@@ -37,7 +37,7 @@ VAR_TO_DOC_MAPPING = {
 # CLEAN NUMBER
 # ==========================================
 def clean_number(value):
-    if value is None:
+    if pd.isna(value):
         return None
 
     val = str(value).strip()
@@ -45,13 +45,30 @@ def clean_number(value):
     if val == "" or val.lower() == "nan":
         return None
 
-    val = val.replace("\n", "")
-    val = val.replace(",", "")
-    val = val.replace('"', '')
+    val = val.replace("\n", "").replace(",", "").replace('"', '')
     try:
         return float(val)
     except:
         return None
+
+# ==========================================
+# SAFE BINARY (0/1)
+# ==========================================
+def safe_binary(val):
+    if pd.isna(val):
+        return 0
+    try:
+        return int(float(val))
+    except:
+        return 0
+
+# ==========================================
+# SAFE STRING
+# ==========================================
+def safe_str(val):
+    if pd.isna(val):
+        return None
+    return str(val)
 
 # ==========================================
 # MAIN FUNCTION
@@ -61,53 +78,62 @@ def run_import_panel(excel_path, connection_string, snapshot_id):
     print("📥 Reading Excel...")
     df = pd.read_excel(excel_path, engine="openpyxl")
 
+    # clean columns
     df.columns = df.columns.str.strip().str.replace('\n', '')
-    df['StockCode'] = df['StockCode'].astype(str).str.strip().str.upper()
-    df = df.replace({np.nan: None})
+
+    # validate structure
+    required_cols = ['StockCode', 'Year']
+    for col in required_cols:
+        if col not in df.columns:
+            raise ValueError(f"❌ Missing required column: {col}")
 
     engine = create_engine(connection_string)
 
     with engine.begin() as conn:
 
-        # ======================================
-        # LOAD FIRM MAP
-        # ======================================
+        # load firm map
         firm_map = {
             row.ticker: row.firm_id
             for row in conn.execute(text("SELECT firm_id, ticker FROM dim_firm"))
         }
 
         inserted_rows = 0
-        skipped = 0
+        skipped_rows = 0
 
-        for _, row in df.iterrows():
+        for idx, row in df.iterrows():
 
-            ticker = row['StockCode']
+            ticker_raw = row.get('StockCode')
+
+            if pd.isna(ticker_raw):
+                continue
+
+            ticker = str(ticker_raw).strip().upper()
             year = row.get('Year')
 
-            if ticker not in firm_map or year is None:
-                skipped += 1
-                continue
+            if ticker not in firm_map:
+                raise ValueError(f"❌ Ticker {ticker} not found in dim_firm")
+
+            if pd.isna(year):
+                raise ValueError(f"❌ Missing year for ticker {ticker}")
 
             firm_id = firm_map[ticker]
             fiscal_year = int(year)
 
-            # ======================================
-            # LOOP DOC TYPE
-            # ======================================
+            row_has_insert = False
+
             for doc_type, cols in VAR_TO_DOC_MAPPING.items():
 
                 has_data = any(
-                    col in df.columns and clean_number(row.get(col)) not in [None, "", "nan"]
+                    col in df.columns and clean_number(row.get(col)) is not None
                     for col in cols
                 )
 
                 if not has_data:
                     continue
 
-                # ======================================
-                # DATA SOURCE (ticker_doc_year)
-                # ======================================
+                # ======================
+                # DATA SOURCE
+                # ======================
                 source_name = f"{ticker}_{doc_type}_{fiscal_year}"
 
                 conn.execute(text("""
@@ -116,21 +142,15 @@ def run_import_panel(excel_path, connection_string, snapshot_id):
                     ON DUPLICATE KEY UPDATE source_name = source_name
                 """), {"name": source_name})
 
-                ds_id = conn.execute(text("""
-                    SELECT data_source_id
-                    FROM dim_data_source
-                    WHERE source_name = :name
-                """), {"name": source_name}).scalar()
+                sid = snapshot_id
 
-                sid = snapshot_id  # ✅ dùng snapshot từ ngoài
-
-                # ======================================
-                # FINANCIAL + CASHFLOW
-                # ======================================
+                # ======================
+                # FINANCIAL
+                # ======================
                 if doc_type == "BCTC_Kiem_Toan":
 
                     conn.execute(text("""
-                        INSERT IGNORE INTO fact_financial_year (
+                        INSERT INTO fact_financial_year (
                             firm_id,fiscal_year,snapshot_id,
                             unit_scale, currency_code,
                             net_sales,total_assets,
@@ -162,6 +182,32 @@ def run_import_panel(excel_path, connection_string, snapshot_id):
                             :inv,:ppe,:cash,
                             :rnd,:growth
                         )
+                        ON DUPLICATE KEY UPDATE
+                            unit_scale = VALUES(unit_scale),
+                            currency_code = VALUES(currency_code),
+                            net_sales = VALUES(net_sales),
+                            total_assets = VALUES(total_assets),
+                            selling_expenses = VALUES(selling_expenses),
+                            general_admin_expenses = VALUES(general_admin_expenses),
+                            manufacturing_overhead = VALUES(manufacturing_overhead),
+                            raw_material_consumption = VALUES(raw_material_consumption),
+                            merchandise_purchase_year = VALUES(merchandise_purchase_year),
+                            wip_goods_purchase = VALUES(wip_goods_purchase),
+                            outside_manufacturing_expenses = VALUES(outside_manufacturing_expenses),
+                            production_cost = VALUES(production_cost),
+                            intangible_assets_net = VALUES(intangible_assets_net),
+                            net_operating_income = VALUES(net_operating_income),
+                            net_income = VALUES(net_income),
+                            total_equity = VALUES(total_equity),
+                            total_liabilities = VALUES(total_liabilities),
+                            long_term_debt = VALUES(long_term_debt),
+                            current_assets = VALUES(current_assets),
+                            current_liabilities = VALUES(current_liabilities),
+                            inventory = VALUES(inventory),
+                            net_ppe = VALUES(net_ppe),
+                            cash_and_equivalents = VALUES(cash_and_equivalents),
+                            rnd_expenditure = VALUES(rnd_expenditure),
+                            growth_ratio = VALUES(growth_ratio)
                     """), {
                         "fid": firm_id,
                         "year": fiscal_year,
@@ -193,13 +239,20 @@ def run_import_panel(excel_path, connection_string, snapshot_id):
                         "growth": clean_number(row.get('Growth ratio'))
                     })
 
+                    # CASHFLOW
                     conn.execute(text("""
-                        INSERT IGNORE INTO fact_cashflow_year (
+                        INSERT INTO fact_cashflow_year (
                             firm_id,fiscal_year,snapshot_id,
                             unit_scale,currency_code,
                             net_cfo,net_cfi,capex
                         )
                         VALUES (:fid,:year,:sid,:scale,:cur,:cfo,:cfi,:capex)
+                        ON DUPLICATE KEY UPDATE
+                                unit_scale = VALUES(unit_scale),
+                                currency_code = VALUES(currency_code),
+                                net_cfo = VALUES(net_cfo),
+                                net_cfi = VALUES(net_cfi),
+                                capex = VALUES(capex)
                     """), {
                         "fid": firm_id,
                         "year": fiscal_year,
@@ -211,13 +264,13 @@ def run_import_panel(excel_path, connection_string, snapshot_id):
                         "capex": clean_number(row.get('Capital expenditure'))
                     })
 
-                # ======================================
+                # ======================
                 # MARKET
-                # ======================================
+                # ======================
                 elif doc_type == "Du_Lieu_Thi_Truong_Web":
 
                     conn.execute(text("""
-                        INSERT IGNORE INTO fact_market_year (
+                        INSERT INTO fact_market_year (
                             firm_id,fiscal_year,snapshot_id,
                             currency_code,
                             shares_outstanding,
@@ -227,6 +280,13 @@ def run_import_panel(excel_path, connection_string, snapshot_id):
                             eps_basic
                         )
                         VALUES (:fid,:year,:sid,:cur,:shares,:price,:mve,:div,:eps)
+                        ON DUPLICATE KEY UPDATE
+                                currency_code = VALUES(currency_code),
+                                shares_outstanding = VALUES(shares_outstanding),
+                                share_price = VALUES(share_price),
+                                market_value_equity = VALUES(market_value_equity),
+                                dividend_cash_paid = VALUES(dividend_cash_paid),
+                                eps_basic = VALUES(eps_basic)
                     """), {
                         "fid": firm_id,
                         "year": fiscal_year,
@@ -239,18 +299,23 @@ def run_import_panel(excel_path, connection_string, snapshot_id):
                         "eps": clean_number(row.get('EPS'))
                     })
 
-                # ======================================
+                # ======================
                 # OWNERSHIP
-                # ======================================
+                # ======================
                 elif doc_type == "Bao_Cao_Quan_Tri":
 
                     conn.execute(text("""
-                        INSERT IGNORE INTO fact_ownership_year (
+                        INSERT INTO fact_ownership_year (
                             firm_id,fiscal_year,snapshot_id,
                             managerial_inside_own,state_own,
                             institutional_own,foreign_own
                         )
                         VALUES (:fid,:year,:sid,:m,:s,:i,:f)
+                        ON DUPLICATE KEY UPDATE
+                            managerial_inside_own = VALUES(managerial_inside_own),
+                            state_own = VALUES(state_own),
+                            institutional_own = VALUES(institutional_own),
+                            foreign_own = VALUES(foreign_own)        
                     """), {
                         "fid": firm_id,
                         "year": fiscal_year,
@@ -261,34 +326,42 @@ def run_import_panel(excel_path, connection_string, snapshot_id):
                         "f": clean_number(row.get('Foreign ownership'))
                     })
 
-                # ======================================
+                # ======================
                 # INNOVATION + META
-                # ======================================
+                # ======================
                 elif doc_type == "Bao_Cao_Thuong_Nien":
 
                     conn.execute(text("""
-                        INSERT IGNORE INTO fact_innovation_year (
+                        INSERT INTO fact_innovation_year (
                             firm_id,fiscal_year,snapshot_id,
                             product_innovation,process_innovation,
                             evidence_product, evidence_process
                         )
-                        VALUES (:fid,:year,:sid,:p,:pr, :evid_prod, :evid_proc)
+                        VALUES (:fid,:year,:sid,:p,:pr,:evid_prod,:evid_proc)
+                        ON DUPLICATE KEY UPDATE
+                            product_innovation = VALUES(product_innovation),
+                            process_innovation = VALUES(process_innovation),
+                            evidence_product = VALUES(evidence_product),
+                            evidence_process = VALUES(evidence_process)              
                     """), {
                         "fid": firm_id,
                         "year": fiscal_year,
                         "sid": sid,
-                        "p": int(row.get('Product innovation') or 0),
-                        "pr": int(row.get('Process innovation') or 0),
-                        "evid_prod": str(row.get("Evidence note product")),
-                        "evid_proc": str(row.get("Evidence note process"))  
+                        "p": safe_binary(row.get('Product innovation')),
+                        "pr": safe_binary(row.get('Process innovation')),
+                        "evid_prod": safe_str(row.get("Evidence note product")),
+                        "evid_proc": safe_str(row.get("Evidence note process"))
                     })
 
                     conn.execute(text("""
-                        INSERT IGNORE INTO fact_firm_year_meta (
+                        INSERT INTO fact_firm_year_meta (
                             firm_id,fiscal_year,snapshot_id,
                             employees_count,firm_age
                         )
                         VALUES (:fid,:year,:sid,:emp,:age)
+                        ON DUPLICATE KEY UPDATE
+                            employees_count = VALUES(employees_count),
+                            firm_age = VALUES(firm_age)      
                     """), {
                         "fid": firm_id,
                         "year": fiscal_year,
@@ -297,10 +370,15 @@ def run_import_panel(excel_path, connection_string, snapshot_id):
                         "age": clean_number(row.get('Firm Age'))
                     })
 
-            inserted_rows += 1
+                row_has_insert = True
+
+            if row_has_insert:
+                inserted_rows += 1
+            else:
+                skipped_rows += 1
 
         print("====================================")
         print(f"✅ Imported rows: {inserted_rows}")
-        print(f"⚠️ Skipped rows: {skipped}")
+        print(f"⚠️ Skipped rows: {skipped_rows}")
         print(f"📌 Snapshot used: {snapshot_id}")
         print("====================================")

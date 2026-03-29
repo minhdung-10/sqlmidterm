@@ -1,0 +1,24 @@
+﻿ticker,fiscal_year,field_name,error_type,message
+AAM,2020,capex_inconsistency,warning,Capex dương nhưng cashflow_investing không âm - cần kiểm tra định nghĩa dấu hoặc dữ liệu
+AAM,2023,capex_inconsistency,warning,Capex dương nhưng cashflow_investing không âm - cần kiểm tra định nghĩa dấu hoặc dữ liệu
+AAM,2024,capex_inconsistency,warning,Capex dương nhưng cashflow_investing không âm - cần kiểm tra định nghĩa dấu hoặc dữ liệu
+ACG,2022,capex_inconsistency,warning,Capex dương nhưng cashflow_investing không âm - cần kiểm tra định nghĩa dấu hoặc dữ liệu
+DCL,2021,capex_inconsistency,warning,Capex dương nhưng cashflow_investing không âm - cần kiểm tra định nghĩa dấu hoặc dữ liệu
+DCL,2022,capex_inconsistency,warning,Capex dương nhưng cashflow_investing không âm - cần kiểm tra định nghĩa dấu hoặc dữ liệu
+DP3,2022,capex_inconsistency,warning,Capex dương nhưng cashflow_investing không âm - cần kiểm tra định nghĩa dấu hoặc dữ liệu
+DRC,2022,capex_inconsistency,warning,Capex dương nhưng cashflow_investing không âm - cần kiểm tra định nghĩa dấu hoặc dữ liệu
+GDT,2020,capex_inconsistency,warning,Capex dương nhưng cashflow_investing không âm - cần kiểm tra định nghĩa dấu hoặc dữ liệu
+GDT,2021,capex_inconsistency,warning,Capex dương nhưng cashflow_investing không âm - cần kiểm tra định nghĩa dấu hoặc dữ liệu
+GDT,2022,capex_inconsistency,warning,Capex dương nhưng cashflow_investing không âm - cần kiểm tra định nghĩa dấu hoặc dữ liệu
+GIL,2023,capex_inconsistency,warning,Capex dương nhưng cashflow_investing không âm - cần kiểm tra định nghĩa dấu hoặc dữ liệu
+LAS,2022,capex_inconsistency,warning,Capex dương nhưng cashflow_investing không âm - cần kiểm tra định nghĩa dấu hoặc dữ liệu
+NET,2022,capex_inconsistency,warning,Capex dương nhưng cashflow_investing không âm - cần kiểm tra định nghĩa dấu hoặc dữ liệu
+NET,2024,capex_inconsistency,warning,Capex dương nhưng cashflow_investing không âm - cần kiểm tra định nghĩa dấu hoặc dữ liệu
+OPC,2020,capex_inconsistency,warning,Capex dương nhưng cashflow_investing không âm - cần kiểm tra định nghĩa dấu hoặc dữ liệu
+OPC,2021,capex_inconsistency,warning,Capex dương nhưng cashflow_investing không âm - cần kiểm tra định nghĩa dấu hoặc dữ liệu
+OPC,2023,capex_inconsistency,warning,Capex dương nhưng cashflow_investing không âm - cần kiểm tra định nghĩa dấu hoặc dữ liệu
+VMC,2020,capex_inconsistency,warning,Capex dương nhưng cashflow_investing không âm - cần kiểm tra định nghĩa dấu hoặc dữ liệu
+VMC,2023,capex_inconsistency,warning,Capex dương nhưng cashflow_investing không âm - cần kiểm tra định nghĩa dấu hoặc dữ liệu
+BCC,2024,net_sales_growth_abnormal,warning,Net sales growth bất thường so với năm trước
+BCC,2024,extreme_growth,warning,Net sales growth cực đoan
+BCC,2024,net_sales_jump,warning,Net sales nhảy quá mạnh so với năm trước

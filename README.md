@@ -21,10 +21,10 @@ Dự án sử dụng một file dữ liệu tổng hợp là **`DATA COLLECTION.
 
 ## Thành viên nhóm
 
-- **Đào Minh Dũng**
-- **Vũ Đức Anh**
-- **Nguyễn Đức Quang**
-- **Đỗ Huy**
+- **Đào Minh Dũng - **
+- **Vũ Đức Anh - 11245840**
+- **Nguyễn Đức Quang - **
+- **Đỗ Huy - **
 
 ---
 

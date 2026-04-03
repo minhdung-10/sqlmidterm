@@ -2,9 +2,7 @@ import pandas as pd
 import numpy as np
 from sqlalchemy import create_engine, text
 
-# ==========================================
-# VAR MAPPING (GIỮ NGUYÊN)
-# ==========================================
+# VAR MAPPING
 VAR_TO_DOC_MAPPING = {
     "BCTC_Kiem_Toan": [
         'Selling expenses','General and administrative expenditure',
@@ -33,9 +31,7 @@ VAR_TO_DOC_MAPPING = {
     ]
 }
 
-# ==========================================
 # CLEAN NUMBER
-# ==========================================
 def clean_number(value):
     if pd.isna(value):
         return None
@@ -51,9 +47,7 @@ def clean_number(value):
     except:
         return None
 
-# ==========================================
 # SAFE BINARY (0/1)
-# ==========================================
 def safe_binary(val):
     if pd.isna(val):
         return 0
@@ -62,17 +56,13 @@ def safe_binary(val):
     except:
         return 0
 
-# ==========================================
 # SAFE STRING
-# ==========================================
 def safe_str(val):
     if pd.isna(val):
         return None
     return str(val)
 
-# ==========================================
 # MAIN FUNCTION
-# ==========================================
 def run_import_panel(excel_path, connection_string, snapshot_id):
 
     print("📥 Reading Excel...")
@@ -131,9 +121,7 @@ def run_import_panel(excel_path, connection_string, snapshot_id):
                 if not has_data:
                     continue
 
-                # ======================
                 # DATA SOURCE
-                # ======================
                 source_name = f"{ticker}_{doc_type}_{fiscal_year}"
 
                 conn.execute(text("""
@@ -144,9 +132,7 @@ def run_import_panel(excel_path, connection_string, snapshot_id):
 
                 sid = snapshot_id
 
-                # ======================
                 # FINANCIAL
-                # ======================
                 if doc_type == "BCTC_Kiem_Toan":
 
                     conn.execute(text("""
@@ -264,9 +250,7 @@ def run_import_panel(excel_path, connection_string, snapshot_id):
                         "capex": clean_number(row.get('Capital expenditure'))
                     })
 
-                # ======================
                 # MARKET
-                # ======================
                 elif doc_type == "Du_Lieu_Thi_Truong_Web":
 
                     conn.execute(text("""
@@ -299,9 +283,7 @@ def run_import_panel(excel_path, connection_string, snapshot_id):
                         "eps": clean_number(row.get('EPS'))
                     })
 
-                # ======================
                 # OWNERSHIP
-                # ======================
                 elif doc_type == "Bao_Cao_Quan_Tri":
 
                     conn.execute(text("""
@@ -326,9 +308,7 @@ def run_import_panel(excel_path, connection_string, snapshot_id):
                         "f": clean_number(row.get('Foreign ownership'))
                     })
 
-                # ======================
                 # INNOVATION + META
-                # ======================
                 elif doc_type == "Bao_Cao_Thuong_Nien":
 
                     conn.execute(text("""

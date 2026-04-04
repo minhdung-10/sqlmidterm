@@ -1,5 +1,5 @@
-CREATE DATABASE midterm_proj;
-USE midterm_proj;
+CREATE DATABASE FirmDataHub;
+USE FirmDataHub;
 
 -- =========================
 -- DIMENSION TABLES

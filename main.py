@@ -12,9 +12,6 @@ def run_pipeline():
     print("🚀 RUNNING FULL FINANCIAL ETL PIPELINE 🚀")
     print("=" * 60)
 
-    # ======================
-    # MYSQL LOGIN
-    # ======================
     db_host = input("Host (Enter = localhost): ") or "localhost"
     db_port = input("Port (Enter = 3306): ") or "3306"
     db_user = input("User (Enter = root): ") or "root"
@@ -25,22 +22,15 @@ def run_pipeline():
         f"mysql+pymysql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
     )
 
-    EXCEL_FILE = "DATA COLLECTION.xlsx"
-    VERSION_TAG = "v1_pipeline"
+    EXCEL_FILE = "panel_2020_2024.xlsx"
+    VERSION_TAG = "v1"
 
     try:
-
-        # ======================
-        # STEP 1 - DIM_FIRM
-        # ======================
         print("\n▶ STEP 1: Import DIM_FIRM")
         time.sleep(1)
 
         run_import_dim_firm(EXCEL_FILE, connection_string)
 
-        # ======================
-        # STEP 2 - SNAPSHOT
-        # ======================
         print("\n▶ STEP 2: Create Snapshot")
         time.sleep(1)
 
@@ -50,9 +40,6 @@ def run_pipeline():
             connection_string=connection_string
         )
 
-        # ======================
-        # STEP 3 - PANEL DATA
-        # ======================
         print("\n▶ STEP 3: Import Panel Data")
         time.sleep(1)
 
